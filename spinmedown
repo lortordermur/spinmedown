@@ -1,0 +1,93 @@
+#!/bin/sh
+
+##############
+# SPINMEDOWN #
+##############
+
+# This script takes a filesystem UUID as its only parameter and spins down the
+# containing drive if it has not been accessed since the last script call.
+
+# In a typical usecase the script would be called in an interval of 30 minutes
+# from crontab so the drive would spin down after 30-60 minutes of inactivity.
+
+# Root check
+
+if [ "$(id -u)" != "0" ]; then
+  echo "This script must be run with root privileges!"
+  exit 1
+fi
+
+echo "** Spinmedown: Spin down a drive if not accessed since the last script call **"
+echo
+
+# The filesystem needs to be given by its UUID; use blkid to figure it out
+fsuuid="$1"
+
+if [ -z "$fsuuid" ]; then
+  echo "Error: You need to provide a filesystem UUID as the first parameter!"
+  exit 1
+fi
+
+devicefile=$(readlink -f /dev/disk/by-uuid/$fsuuid)
+
+if [ ! -e "$devicefile" ]; then
+  echo "Invalid filesystem UUID! You need to provide it as the first parameter."
+  exit 1
+fi
+
+devicename=$(basename $devicefile | sed 's/.$//')
+
+echo "Device file: $devicefile"
+echo "Device name: $devicename"
+
+statsfile="/sys/block/$devicename/stat"
+
+if [ ! -e "$statsfile" ]; then
+  echo "Invalid device! Please check that you provided a valid filesystem UUID."
+  exit 1
+fi
+
+# Get the device statistics from sysfs
+
+devicestats=$(cat $statsfile)
+numreads=$(echo $devicestats | cut -f 1 -d ' ')
+numwrites=$(echo $devicestats | cut -f 5 -d ' ')
+
+echo "Number of reads: $numreads"
+echo "Number of writes: $numwrites"
+
+rtmpfile="/tmp/$fsuuid-reads"
+wtmpfile="/tmp/$fsuuid-writes"
+
+echo "Using timestamp files: $rtmpfile and $wtmpfile"
+
+# Manage the read and write stampfiles
+
+touch $rtmpfile
+
+if [ ! -s "$rtmpfile" ]; then
+  echo "Creating read stampfile"
+  echo "0" > $rtmpfile
+fi
+
+oldnumreads=$(cat $rtmpfile)
+echo $numreads > $rtmpfile
+
+touch $wtmpfile
+
+if [ ! -s "$wtmpfile" ]; then
+  echo "Creating write stampfile"
+  echo "0" > $wtmpfile
+fi
+
+oldnumwrites=$(cat $wtmpfile)
+echo $numwrites > $wtmpfile
+
+# Decide what to do
+
+if [ "$numreads" -eq "$oldnumreads" ] && [ "$numwrites" -eq "$oldnumwrites" ]; then
+  echo "Putting device in standby"
+  hdparm -y $devicefile
+else
+  echo "Leaving device active"
+fi
