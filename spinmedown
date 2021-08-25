@@ -59,7 +59,9 @@ echo "Number of writes: $numwrites"
 rtmpfile="/tmp/$fsuuid-reads"
 wtmpfile="/tmp/$fsuuid-writes"
 
-echo "Using timestamp files: $rtmpfile and $wtmpfile"
+echo "Using timestamp files:"
+echo "\t$rtmpfile"
+echo "\t$wtmpfile"
 
 # Manage the read and write stampfiles
 
@@ -84,6 +86,8 @@ oldnumwrites=$(cat $wtmpfile)
 echo $numwrites > $wtmpfile
 
 # Decide what to do
+
+echo
 
 if [ "$numreads" -eq "$oldnumreads" ] && [ "$numwrites" -eq "$oldnumwrites" ]; then
   echo "Putting device in standby"
