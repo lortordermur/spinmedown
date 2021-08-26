@@ -60,7 +60,7 @@ echo "Number of writes: $numwrites"
 rtmpfile="/tmp/$fsuuid-reads"
 wtmpfile="/tmp/$fsuuid-writes"
 
-echo "Using timestamp files:"
+echo "Using read/write stampfiles:"
 echo "\t$rtmpfile"
 echo "\t$wtmpfile"
 
